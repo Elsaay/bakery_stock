@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: products
-        image: YOUR_DOCKERHUB_USERNAME/bakery-products:latest
+        image: yannisal/bakery-products:latest
         ports:
         - containerPort: 5001
           name: http
