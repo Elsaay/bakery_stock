@@ -1,22 +1,22 @@
 import axios from 'axios';
 
 const productsApi = axios.create({
-  baseURL: process.env.REACT_APP_PRODUCTS_URL || 'http://localhost:5001',
+  baseURL: process.env.REACT_APP_PRODUCTS_URL, // /api
   headers: { 'Content-Type': 'application/json' },
 });
 
 const ordersApi = axios.create({
-  baseURL: process.env.REACT_APP_ORDERS_URL || 'http://localhost:5002',
+  baseURL: process.env.REACT_APP_ORDERS_URL, // /api
   headers: { 'Content-Type': 'application/json' },
 });
 
 const stockApi = axios.create({
-  baseURL: process.env.REACT_APP_STOCK_URL || 'http://localhost:5003',
+  baseURL: process.env.REACT_APP_STOCK_URL, // /api
   headers: { 'Content-Type': 'application/json' },
 });
 
 // === PRODUITS ===
-export const getProducts = () => productsApi.get('/products');
+export const getProducts = () => productsApi.get('/products'); // /api/products
 export const createProduct = (data) => productsApi.post('/products', data);
 export const updateProduct = (id, data) => productsApi.put(`/products/${id}`, data);
 export const deleteProduct = (id) => productsApi.delete(`/products/${id}`);

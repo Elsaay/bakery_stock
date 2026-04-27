@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-init-script
+data:
+  init.sql: |
+    CREATE DATABASE IF NOT EXISTS bakery_stock;
+    USE bakery_stock;
+    
+    CREATE TABLE IF NOT EXISTS products (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      image VARCHAR(255) NOT NULL,
+      stock INT NOT NULL DEFAULT 0,
+      status ENUM('available', 'unavailable') NOT NULL DEFAULT 'available'
+    );
+    
+    CREATE TABLE IF NOT EXISTS orders (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      supplier_email VARCHAR(255) NOT NULL,
+      message TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE TABLE IF NOT EXISTS order_items (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      order_id INT NOT NULL,
+      product_id INT NOT NULL,
+      quantity INT NOT NULL,
+      CONSTRAINT fk_order_items_order
+        FOREIGN KEY (order_id) REFERENCES orders(id)
+        ON DELETE CASCADE,
+      CONSTRAINT fk_order_items_product
+        FOREIGN KEY (product_id) REFERENCES products(id)
+        ON DELETE RESTRICT
+    );
+    
+    CREATE TABLE IF NOT EXISTS stock_history (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      product_id INT NOT NULL,
+      quantity_used INT NOT NULL,
+      used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT fk_stock_history_product
+        FOREIGN KEY (product_id) REFERENCES products(id)
+        ON DELETE RESTRICT
+    );
+    
+    INSERT INTO products (name, image, stock, status) VALUES
+      ('Baguette', 'https://images.unsplash.com/photo-1549931319-a545dcf3bc73', 20, 'available'),
+      ('Croissant', 'https://images.unsplash.com/photo-1509440159596-0249088772ff', 15, 'available'),
+      ('Pain au chocolat', 'https://images.unsplash.com/photo-1517433670267-08bbd4be890f', 0, 'unavailable');
