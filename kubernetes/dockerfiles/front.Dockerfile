@@ -3,10 +3,10 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-COPY boulangerie_stock/package*.json ./
+COPY frontend/package*.json ./
 RUN npm install
 
-COPY boulangerie_stock/ ./
+COPY frontend/ ./
 
 ARG REACT_APP_PRODUCTS_URL=http://localhost:30001
 ARG REACT_APP_ORDERS_URL=http://localhost:30002
