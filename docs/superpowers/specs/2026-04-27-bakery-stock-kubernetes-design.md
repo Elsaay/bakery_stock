@@ -18,13 +18,13 @@ The goal is not a complex architecture. The goal is a simple deployment that wor
 - The three backends and MySQL stay internal to the cluster.
 - MySQL data must persist with a persistent volume.
 - The solution must include Dockerfiles for the frontend and the three backends.
-- The deployment should stay as simple as possible: Kubernetes Deployments and Services only, without Ingress.
+- The deployment should stay as simple as possible: Kubernetes Deployments, Services, and a small ConfigMap, without Ingress.
 
 ## Recommended approach
 
 Use one Docker image per application service and deploy everything on Kubernetes with one Deployment and one Service per service.
 
-MySQL uses the official image, an internal Service, and a PersistentVolumeClaim. The frontend is the only externally exposed service. The three backends are internal ClusterIP services and communicate with MySQL through the Kubernetes service name.
+MySQL uses the official image, an internal Service, and a PersistentVolumeClaim. The frontend is the only externally exposed service. The three backends are internal ClusterIP services and communicate with MySQL through the Kubernetes service name. A ConfigMap is included to centralize the non-sensitive runtime configuration because it is part of the course material and is easy to explain.
 
 This approach is recommended because it is the simplest one that still satisfies the exercise:
 
@@ -56,10 +56,10 @@ This approach is recommended because it is the simplest one that still satisfies
 - `backend-stock-usage-service`
 - `mysql-service`
 - `mysql-pvc`
+- `app-config` ConfigMap
 
 Optional but acceptable if needed:
 
-- a `ConfigMap` for non-sensitive configuration
 - a `Secret` for MySQL credentials
 
 ## Communication flow
@@ -78,6 +78,8 @@ Kubernetes internal DNS provides stable names for communication:
 - `mysql-service`
 
 The applications do not need fixed IP addresses. They communicate through Kubernetes service names.
+
+The ConfigMap stores the non-sensitive configuration values needed by the applications, such as backend base URLs or MySQL host information. This makes the setup easier to explain because the configuration is separated from the container images.
 
 ## Docker scope
 
@@ -127,6 +129,7 @@ Short explanation:
 > Docker packages each application into an image.
 > Kubernetes runs the images in pods.
 > Services give stable network names so the microservices can communicate.
+> A ConfigMap stores shared non-sensitive configuration outside the images.
 > The frontend is the only public entry point.
 > The three backends stay internal and use MySQL.
 > A persistent volume keeps the database data after restarts.
