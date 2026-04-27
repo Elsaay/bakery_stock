@@ -1,17 +1,17 @@
 import axios from 'axios';
 
 const productsApi = axios.create({
-  baseURL: 'http://localhost:5001',
+  baseURL: process.env.REACT_APP_PRODUCTS_URL || 'http://localhost:5001',
   headers: { 'Content-Type': 'application/json' },
 });
 
 const ordersApi = axios.create({
-  baseURL: 'http://localhost:5002',
+  baseURL: process.env.REACT_APP_ORDERS_URL || 'http://localhost:5002',
   headers: { 'Content-Type': 'application/json' },
 });
 
 const stockApi = axios.create({
-  baseURL: 'http://localhost:5003',
+  baseURL: process.env.REACT_APP_STOCK_URL || 'http://localhost:5003',
   headers: { 'Content-Type': 'application/json' },
 });
 
