@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bakery Stock - Déploiement Kubernetes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #ffffff;
+        }
+
+        /* Container principal - TOUT DOIT RENTRER ICI */
+        .presentation-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Slides */
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            padding: 2rem 3rem;
+            overflow: hidden;
+            flex-direction: column;
+        }
+
+        .slide.active {
+            display: flex;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Background decorations */
+        .bg-decoration {
+            position: absolute;
+            width: 350px;
+            height: 350px;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.12;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .bg-1 { background: #FF2A00; top: -150px; right: -100px; }
+        .bg-2 { background: #FF6B35; bottom: -150px; left: -100px; }
+
+        /* Titre - taille fixe */
+        .slide-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 2.3rem;
+            font-weight: 700;
+            color: #FFD700;
+            margin-bottom: 1.2rem;
+            text-align: center;
+            z-index: 10;
+            flex: 0 0 auto;
+        }
+
+        /* Contenu principal - prend l'espace restant MAIS NE DÉPASSE PAS */
+        .slide-content {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            min-height: 0; /* IMPORTANT pour éviter overflow */
+            overflow: hidden;
+        }
+
+        /* Footer - taille fixe en bas */
+        .slide-footer {
+            flex: 0 0 auto;
+            padding: 0.8rem 2rem;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid rgba(255, 42, 0, 0.2);
+            z-index: 10;
+            margin-top: 1rem;
+        }
+
+        .page-number {
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #FF2A00;
+        }
+
+        .project-name {
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 400;
+            color: #888;
+        }
+
+        /* Navigation dots */
+        .nav-dots {
+            position: fixed;
+            bottom: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            z-index: 100;
+        }
+
+        .nav-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .nav-dot.active { background: #FF2A00; transform: scale(1.4); }
+        .nav-dot:hover { background: #FF6B35; }
+
+        .keyboard-hint {
+            position: fixed;
+            bottom: 15px;
+            right: 20px;
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.35);
+            z-index: 100;
+        }
+
+        /* Grid layouts */
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* Cards */
+        .card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 2px solid rgba(255, 42, 0, 0.25);
+            border-radius: 12px;
+            padding: 1.2rem;
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 0.7rem;
+        }
+
+        /* List items compacts */
+        .list-item {
+            font-size: 0.92rem;
+            color: #e0e0e0;
+            line-height: 1.4;
+            margin-bottom: 0.35rem;
+        }
+
+        .check-item::before { content: "✓ "; color: #34C759; font-weight: bold; }
+        .arrow-item::before { content: "→ "; color: #FF2A00; font-weight: bold; }
+        .bullet-item::before { content: "• "; color: #FF2A00; font-weight: bold; }
+
+        .highlight { color: #FFD700; font-weight: 600; }
+
+        /* Tableaux compacts */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            overflow: hidden;
+            font-size: 0.88rem;
+        }
+
+        th, td {
+            padding: 0.7rem 0.6rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        th {
+            background: linear-gradient(135deg, rgba(255, 42, 0, 0.25), rgba(255, 107, 53, 0.2));
+            color: #FFD700;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        td { color: #e0e0e0; }
+        tr:hover td { background: rgba(255, 42, 0, 0.06); }
+
+        .badge-public {
+            display: inline-block;
+            padding: 0.25rem 0.7rem;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 165, 0, 0.2));
+            border: 1px solid rgba(255, 215, 0, 0.4);
+            border-radius: 15px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #FFD700;
+        }
+
+        .badge-internal {
+            display: inline-block;
+            padding: 0.25rem 0.7rem;
+            background: linear-gradient(135deg, rgba(100, 149, 237, 0.2), rgba(65, 105, 225, 0.15));
+            border: 1px solid rgba(100, 149, 237, 0.35);
+            border-radius: 15px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #87CEEB;
+        }
+
+        /* Code blocks compacts */
+        .code-block {
+            background: rgba(0, 0, 0, 0.4);
+            border-left: 3px solid #FF2A00;
+            padding: 0.7rem 1rem;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #87CEEB;
+            margin: 0.6rem 0;
+            line-height: 1.5;
+        }
+
+        /* Concept cards compacts */
+        .concept-card {
+            background: rgba(255, 255, 255, 0.04);
+            border-left: 3px solid #FF2A00;
+            padding: 1rem 1.3rem;
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+            margin-bottom: 0.9rem;
+        }
+
+        .section-subtitle {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #FF6B35;
+            margin-bottom: 0.6rem;
+        }
+
+        /* Plein écran */
+        :fullscreen .slide-footer,
+        :fullscreen .nav-dots,
+        :fullscreen .keyboard-hint { display: none; }
+
+        /* Images responsive */
+        img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 12px;
+        }
+
+        /* Step cards pour workflow */
+        .step-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 2px solid rgba(255, 42, 0, 0.25);
+            border-radius: 12px;
+            padding: 1rem;
+            padding-top: 2.6rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .step-number-badge {
+            position: absolute;
+            top: 14px;
+            left: 16px;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, #FF2A00, #FF6B35);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.95rem;
+            color: white;
+            box-shadow: 0 3px 10px rgba(255, 42, 0, 0.4);
+        }
+
+        /* Grid 3 colonnes pour workflow */
+        .grid-3col {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div class="presentation-container">
+
+        <!-- ==================== SLIDE 1 : TITRE ==================== -->
+        <div class="slide active" id="slide1">
+            <div class="bg-decoration bg-1"></div>
+            <div class="bg-decoration bg-2"></div>
+
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10;">
+                <h1 style="font-family: 'Poppins', sans-serif; font-size: 4rem; font-weight: 800; background: linear-gradient(135deg, #fff 0%, #FF2A00 50%, #FF6B35 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 1rem 0;">
+                    Bakery Stock
+                </h1>
+                <h2 style="font-family: 'Poppins', sans-serif; font-size: 1.5rem; font-weight: 300; color: #e0e0e0; text-align: center;">
+                    Déploiement Kubernetes • Gestion de Stock Boulangerie
+                </h2>
+                <div style="width: 120px; height: 3px; background: linear-gradient(90deg, #FF2A00, #FF6B35); margin: 1.5rem 0; border-radius: 2px;"></div>
+
+                <div style="margin-top: 1.5rem; display: flex; gap: 0.8rem; flex-wrap: wrap; justify-content: center;">
+                    <span style="padding: 0.5rem 1.2rem; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 25px; font-size: 0.85rem;">Kubernetes</span>
+                    <span style="padding: 0.5rem 1.2rem; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 25px; font-size: 0.85rem;">Docker</span>
+                    <span style="padding: 0.5rem 1.2rem; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 25px; font-size: 0.85rem;">React</span>
+                    <span style="padding: 0.5rem 1.2rem; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 25px; font-size: 0.85rem;">MySQL</span>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span class="project-name">Bakery Stock Project</span>
+                <span class="page-number">1 / 12</span>
+            </div>
+        </div>
+
+        <!-- ==================== SLIDE 2 : OBJECTIF ==================== -->
+        <div class="slide" id="slide2">
+            <div class="bg-decoration bg-1"></div>
+            <div class="bg-decoration bg-2"></div>
+
+            <h1 class="slide-title">Objectif du Projet</h1>
+
+            <div class="slide-content">
+                <div class="grid-2col">
+                    <div style="display: flex; flex-direction: column; gap: 1rem;">
+                        <div class="concept-card" style="border-left-width: 4px;">
+                            <div class="section-subtitle">Déployer une application de stock :</div>
+                            <div class="list-item check-item">Simple et lisible</div>
+                            <div class="list-item check-item">Montrant les notions essentielles de Kubernetes</div>
+                        </div>
+
+                        <div class="card" style="border-color: rgba(255, 215, 0, 0.3);">
+                            <div class="card-title" style="color: #FFD700; font-size: 1.05rem;">Système composé de 5 services :</div>
+                            <div class="list-item arrow-item"><strong>Frontend</strong> — Interface utilisateur</div>
+                            <div class="list-item arrow-item"><strong>Backend Products</strong> — Produits</div>
+                            <div class="list-item arrow-item"><strong>Backend Orders</strong> — Commandes</div>
+                            <div class="list-item arrow-item"><strong>Backend Stock Usage</strong> — Bilan</div>
+                            <div class="list-item arrow-item"><strong>MySQL</strong> — Base de données</div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: center;">
+                        <img src="https://lvdneng.rosselcdn.net/sites/default/files/dpistyles_v2/ena_16_9_in_line/2022/10/09/node_1239011/55665784/public/2022/10/09/B9732334200Z.1_20221009104740_000%2BG49LDVM5J.1-0.jpg?itok=JyMb_p_G1665325885" alt="Boulangerie" style="max-height: 380px; box-shadow: 0 15px 40px rgba(255, 42, 0, 0.3); border: 2px solid rgba(255, 42, 0, 0.3);">
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span class="project-name">Bakery Stock Project</span>
+                <span class="page-number">2 / 12</span>
+            </div>
+        </div>
+
+        <!-- ==================== SLIDE 3 : ARCHITECTURE ==================== -->
+        <div class="slide" id="slide3">
+            <div class="bg-decoration bg-1"></div>
+            <div class="bg-decoration bg-2"></div>
+
+            <h1 class="slide-title">Architecture Globale</h1>
+
+            <div class="slide-content">
+                <div class="grid-2col">
+                    <div style="display: flex; flex-direction: column; justify-content: center; gap: 0.6rem;">
+                        <div class="section-subtitle" style="margin-bottom: 0.5rem;">Flux de Communication :</div>
+                        
+                        <div class="card" style="background: rgba(255, 215, 0, 0.06); border-color: rgba(255, 215, 0, 0.25); padding: 0.9rem;">
+                            <div class="list-item check-item" style="font-size: 0.85rem;"><strong>Frontend</strong> = seule porte d'entrée publique</div>
+                            <div class="list-item check-item" style="font-size: 0.85rem;"><strong>Backends + MySQL</strong> = internes au cluster</div>
+                            <div class="list-item check-item" style="font-size: 0.85rem;"><strong>Services K8s</strong> = réseau stable</div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: center;">
+                        <div style="width: 100%; max-width: 420px; background: rgba(255,255,255,0.03); border: 2px solid rgba(255,42,0,0.25); border-radius: 16px; padding: 1.5rem;">
+                            <div style="text-align: center; margin-bottom: 1rem;">
+                                <div style="background: linear-gradient(135deg, rgba(255,215,0,0.2), rgba(255,165,0,0.15)); border: 2px solid rgba(255,215,0,0.5); padding: 0.7rem 1.2rem; border-radius: 10px; display: inline-block; font-size: 0.9rem;">Utilisateur</div>
+                            </div>
+                            <div style="text-align: center; font-size: 1.5rem; color: #FF2A00; margin: 0.3rem 0;">↓</div>
+                            <div style="text-align: center; margin-bottom: 1rem;">
+                                <div style="background: linear-gradient(135deg, rgba(255,215,0,0.2), rgba(255,165,0,0.15)); border: 2px solid rgba(255,215,0,0.5); padding: 0.7rem 1.2rem; border-radius: 10px; display: inline-block; font-size: 0.9rem;">Frontend (Nginx)</div>
+                            </div>
+                            <div style="text-align: center; font-size: 1.2rem; color: #FF2A00; margin: 0.3rem 0;">↓ /api/*</div>
+                            <div style="display: flex; justify-content: center; gap: 0.6rem; margin-bottom: 1rem;">
+                                <div style="background: linear-gradient(135deg, rgba(100,149,237,0.15), rgba(65,105,225,0.1)); border: 2px solid rgba(100,149,237,0.4); padding: 0.6rem 1rem; border-radius: 10px; font-size: 0.82rem;">Products</div>
+                                <div style="background: linear-gradient(135deg, rgba(100,149,237,0.15), rgba(65,105,225,0.1)); border: 2px solid rgba(100,149,237,0.4); padding: 0.6rem 1rem; border-radius: 10px; font-size: 0.82rem;">Orders</div>
+                                <div style="background: linear-gradient(135deg, rgba(100,149,237,0.15), rgba(65,105,225,0.1)); border: 2px solid rgba(100,149,237,0.4); padding: 0.6rem 1rem; border-radius: 10px; font-size: 0.82rem;">Stock</div>
+                            </div>
+                            <div style="text-align: center; font-size: 1.5rem; color: #FF2A00; margin: 0.3rem 0;">↓</div>
+                            <div style="text-align: center;">
+                                <div style="background: linear-gradient(135deg, rgba(100,149,237,0.15), rgba(65,105,225,0.1)); border: 2px solid rgba(100,149,237,0.4); padding: 0.7rem 1.2rem; border-radius: 10px; display: inline-block; font-size: 0.9rem;">MySQL (PVC)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span class="project-name">Bakery Stock Project</span>
+                <span class="page-number">3 / 12</span>
+            </div>
+        </div>
+
+        <!-- ==================== SLIDE 4 : SERVICES ==================== -->
+        <div class="slide" id="slide4">
+            <div class="bg-decoration bg-1"></div>
+            <div class="bg-decoration bg-2"></div>
+
+            <h1 class="slide-title">Les 5 Services en Détail</h1>
+
+            <div class="slide-content">
+                <div class="grid-1col">
+                    <div>
+                        <table>
+                            <thead>
+                                <tr><th>Service</th><th>Rôle</th><th>Exposition</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong style="color: #FF6B35; font-size: 0.85rem;">Frontend</strong></td>
+                                    <td style="font-size: 0.85rem;">Interface React + Nginx</td>
+                                    <td><span class="badge-public">NodePort</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong style="color: #FF6B35; font-size: 0.85rem;">backend-products</strong></td>
+                                    <td style="font-size: 0.85rem;">CRUD produits</td>
+                                    <td><span class="badge-internal">ClusterIP</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong style="color: #FF6B35; font-size: 0.85rem;">backend-orders</strong></td>
+                                    <td style="font-size: 0.85rem;">Gestion commandes</td>
+                                    <td><span class="badge-internal">ClusterIP</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong style="color: #FF6B35; font-size: 0.85rem;">backend-stock</strong></td>
+                                    <td style="font-size: 0.85rem;">Bilan journalier</td>
+                                    <td><span class="badge-internal">ClusterIP</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong style="color: #FF6B35; font-size: 0.85rem;">mysql</strong></td>
+                                    <td style="font-size: 0.85rem;">Base de données</td>
+                                    <td><span class="badge-internal">ClusterIP</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span class="project-name">Bakery Stock Project</span>
+                <span class="page-number">4 / 12</span>
+            </div>
+        </div>
+
+        <!-- ==================== SLIDE 5 : DOCKER ==================== -->
+        <div class="slide" id="slide5">
+            <div class="bg-decoration bg-1"></div>
+            <div class="bg-decoration bg-2"></div>
+
+            <h1 class="slide-title">Docker : Images & Conteneurs</h1>
+
+            <div class="slide-content">
+                <div class="grid-2col">
+                    <div style="display: flex; flex-direction: column; gap: 0.9rem;">
+
+                        <div class="card" style="border-left-width: 4px; border-left-color: #34C759;">
+                            <div class="card-title" style="color: #34C759; font-size: 1.05rem;">Où sont stockés les images ?</div>
+                            <div style="font-size: 0.88rem; color: #d0d0d0; margin-bottom: 0.6rem;">Nous avons choisi de stocker nos images sur Docker Hub, dans un repository public.</div>
+                        </div>
+
+                        <div class="card" style="background: rgba(255, 215, 0, 0.06); border-color: rgba(255, 215, 0, 0.25);">
+                            <div class="card-title" style="color: #FFD700; font-size: 1rem;">Nos 4 images personnalisées :</div>
+                            <div style="font-family: monospace; font-size: 0.82rem; color: #87CEEB; padding: 0.3rem 0;"><span style="color: #FF2A00;">→</span> yannisal/myrepo:<strong>frontend</strong></div>
+                            <div style="font-family: monospace; font-size: 0.82rem; color: #87CEEB; padding: 0.3rem 0;"><span style="color: #FF2A00;">→</span> yannisal/myrepo:<strong>products</strong></div>
+                            <div style="font-family: monospace; font-size: 0.82rem; color: #87CEEB; padding: 0.3rem 0;"><span style="color: #FF2A00;">→</span> yannisal/myrepo:<strong>orders</strong></div>
+                            <div style="font-family: monospace; font-size: 0.82rem; color: #87CEEB; padding: 0.3rem 0;"><span style="color: #FF2A00;">→</span> yannisal/myrepo:<strong>stock-usage</strong></div>
+                            <div style="margin-top: 0.6rem; padding: 0.3rem 0.7rem; background: linear-gradient(135deg, rgba(100,149,237,0.25), rgba(65,105,225,0.2)); border: 1px solid rgba(100,149,237,0.4); border-radius: 15px; font-size: 0.78rem; display: inline-block; color: #87CEEB;">+ mysql:8.0</div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: center;">
+                        <div style="width: 280px; height: 280px; background: rgba(255,255,255,0.05); border: 3px solid rgba(255,42,0,0.3); border-radius: 25px; display: flex; align-items: center; justify-content: center; box-shadow: 0 15px 40px rgba(255,42,0,0.25);">
+                            <img src="https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png" alt="Docker Logo" style="width: 200px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span class="project-name">Bakery Stock Project</span>
+                <span class="page-number">5 / 12</span>
+            </div>
+        </div>
+
+        <!-- ==================== SLIDE 6 : POD & DEPLOYMENT ==================== -->
+        <div class="slide" id="slide6">
+            <div class="bg-decoration bg-1"></div>
+            <div class="bg-decoration bg-2"></div>
+
+            <h1 class="slide-title">Pod & Deployment</h1>
+
+            <div class="slide-content">
+                <div class="grid-2col">
+                    <div style="display: flex; flex-direction: column; gap: 0.9rem;">
+                        <div class="card" style="border-left-width: 4px; border-left-color: #FF2A00;">
+                            <div class="card-title" style="color: #FF6B35; font-size: 1.05rem;">Pod</div>
+                            <div style="font-size: 0.88rem; color: #d0d0d0; margin-bottom: 0.6rem;">Unité d'exécution de base dans K8s</div>
+                            <div class="list-item bullet-item" style="font-size: 0.85rem;">Contient 1 ou plusieurs conteneurs</div>
+                        </div>
+
+                        <div class="card" style="border-left-width: 4px; border-left-color: #34C759;">
+                            <div class="card-title" style="color: #34C759; font-size: 1.05rem;">Deployment</div>
+                            <div style="font-size: 0.88rem; color: #d0d0d0; margin-bottom: 0.6rem;">Comment déployer et maintenir un Pod</div>
+                            <div class="list-item check-item" style="font-size: 0.85rem;">Crée automatiquement les Pods</div>
+                            <div class="list-item check-item" style="font-size: 0.85rem;">Recrée les Pods s'ils tombent</div>
+                            <div class="list-item check-item" style="font-size: 0.85rem;">Gère mises à jour + réplicas</div>
+                        </div>
+
+                        <div style="background: rgba(255,215,0,0.06); border: 2px solid rgba(255,215,0,0.25); padding: 0.9rem; border-radius: 10px; text-align: center;">
+                            <span style="font-family: 'Poppins', sans-serif; font-size: 1rem; font-weight: 600; color: #FFD700;">Chaque service a son Deployment !</span>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 1.5rem;">
+                        <div>
+                            <div style="width: 220px; height: 220px; background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); border: 3px solid rgba(255,42,0,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 15px 40px rgba(255,42,0,0.25); margin: 0 auto 1.2rem;">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Kubernetes_logo_without_workmark.svg/960px-Kubernetes_logo_without_workmark.svg.png" alt="K8s Logo" style="width: 160px;">
+                            </div>
+
+                            <div class="card" style="max-width: 280px; margin: 0 auto;">
+                                <div class="card-title" style="color: #FFD700; font-size: 0.95rem; text-align: center;">Relation Deployment → Pod → Conteneur</div>
+                                
+                                <div style="background: rgba(255,42,0,0.06); padding: 0.6rem 0.9rem; border-radius: 8px; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.7rem;">
+                                    <span style="font-size: 0.85rem;"><strong>Deployment</strong> (contrôle)</span>
+                                </div>
+                                <div style="text-align: center; font-size: 1.1rem; color: #FF2A00;">↓ gère ↓</div>
+                                <div style="background: rgba(255,42,0,0.06); padding: 0.6rem 0.9rem; border-radius: 8px; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.7rem;">
+                                    <span style="font-size: 0.85rem;"><strong>Pod</strong> (exécution)</span>
+                                </div>
+                                <div style="text-align: center; font-size: 1.1rem; color: #FF2A00;">↓ contient ↓</div>
+                                <div style="background: rgba(255,42,0,0.06); padding: 0.6rem 0.9rem; border-radius: 8px; display: flex; align-items: center; gap: 0.7rem;">
+                                    <span style="font-size: 0.85rem;"><strong>Conteneur</strong> (application)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span class="project-name">Bakery Stock Project</span>
+                <span class="page-number">6 / 12</span>
+            </div>
+        </div>
+
+        <!-- ==================== SLIDE 7 : SERVICE ==================== -->
+        <div class="slide" id="slide7">
+            <div class="bg-decoration bg-1"></div>
+            <div class="bg-decoration bg-2"></div>
+
+            <h1 class="slide-title">Services</h1>
+
+            <div class="slide-content">
+                <div class="grid-1col centered">
+                    <div style="display: flex; flex-direction: column; gap: 0.9rem;">
+                        <div class="card">
+                            <div class="card-title" style="color: #FFD700; font-size: 1.05rem;">NodePort</div>
+                            <div style="font-size: 0.85rem; color: #d0d0d0; margin-bottom: 0.6rem;">Exposé publiquement depuis l'extérieur</div>
+                            <div class="code-block" style="margin: 0; font-size: 0.8rem;">frontend-service → Port 30080</div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title" style="color: #87CEEB; font-size: 1.05rem;">ClusterIP</div>
+                            <div style="font-size: 0.85rem; color: #d0d0d0; margin-bottom: 0.6rem;">Accès interne uniquement au cluster</div>
+                            <div class="code-block" style="margin: 0; font-size: 0.78rem;">backend-products-service<br>backend-orders-service<br>backend-stock-usage-service<br>mysql-service</div>
+                        </div>
+
+                        <div style="background: rgba(255,215,0,0.06); border: 2px solid rgba(255,215,0,0.25); border-radius: 12px; padding: 1rem;">
+                            <div class="card-title" style="color: #FFD700; font-size: 0.95rem;">Avantages :</div>
+                            <div class="list-item" style="font-size: 0.83rem;"><span style="color: #FF2A00; margin-right: 0.5rem;">→</span> Communication fiable entre composants</div>
+                            <div class="list-item" style="font-size: 0.83rem;"><span style="color: #FF2A00; margin-right: 0.5rem;">→</span> Backends non accessibles depuis extérieur</div>
+                            <div class="list-item" style="font-size: 0.83rem;"><span style="color: #FF2A00; margin-right: 0.5rem;">→</span> Un seul point d'entrée public</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span class="project-name">Bakery Stock Project</span>
+                <span class="page-number">7 / 12</span>
+            </div>
+        </div>
+
+        <!-- ==================== SLIDE 8 : CONFIGMAP & SECRET ==================== -->
+        <div class="slide" id="slide8">
+            <div class="bg-decoration bg-1"></div>
+            <div class="bg-decoration bg-2"></div>
+
+            <h1 class="slide-title">Configuration : ConfigMap & Secret</h1>
+
+            <div class="slide-content">
+                <div class="grid-2col">
+                    <div style="display: flex; flex-direction: column; gap: 1rem;">
+                        <div class="card">
+                            <div class="card-title" style="color: #34C759; font-size: 1.05rem;">ConfigMap</div>
+                            <div style="font-size: 0.85rem; color: #b0b0b0; margin-bottom: 0.7rem;">Configuration NON sensible</div>
+                            <div class="code-block" style="font-size: 0.82rem;">
+                                <span style="color: #FFD700;">DB_HOST:</span> mysql-service<br>
+                                <span style="color: #FFD700;">DB_NAME:</span> bakery_stock
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title" style="color: #FF453A; font-size: 1.05rem;">Secret</div>
+                            <div style="font-size: 0.85rem; color: #b0b0b0; margin-bottom: 0.7rem;">Configuration SENSIBLE</div>
+                            <div class="code-block" style="font-size: 0.82rem;">
+                                <span style="color: #FFD700;">DB_USER:</span> ••••••••<br>
+                                <span style="color: #FFD700;">DB_PASSWORD:</span> ••••••••<br>
+                                <span style="color: #FFD700;">MYSQL_ROOT_PASSWORD:</span> ••••••••
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; justify-content: center; gap: 1rem;">
+                        <div style="background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,165,0,0.05)); border: 2px solid rgba(255,215,0,0.3); border-radius: 14px; padding: 1.3rem;">
+                            <div class="card-title" style="color: #FFD700; text-align: center; font-size: 1.05rem;">Pourquoi séparer ?</div>
+                            
+                            <div style="display: flex; align-items: flex-start; gap: 0.8rem; padding: 0.7rem 0; border-bottom: 1px solid rgba(255,215,0,0.15);">
+                                <span style="font-size: 1.2rem; color: #34C759; min-width: 22px;">✓</span>
+                                <span style="font-size: 0.88rem; color: #e0e0e0;"><span class="highlight">Code générique</span> dans l'image Docker</span>
+                            </div>
+                            <div style="display: flex; align-items: flex-start; gap: 0.8rem; padding: 0.7rem 0; border-bottom: 1px solid rgba(255,215,0,0.15);">
+                                <span style="font-size: 1.2rem; color: #34C759; min-width: 22px;">✓</span>
+                                <span style="font-size: 0.88rem; color: #e0e0e0;"><span class="highlight">Configuration injectée</span> au déploiement</span>
+                            </div>
+                            <div style="display: flex; align-items: flex-start; gap: 0.8rem; padding: 0.7rem 0;">
+                                <span style="font-size: 1.2rem; color: #34C759; min-width: 22px;">✓</span>
+                                <span style="font-size: 0.88rem; color: #e0e0e0;"><span class="highlight">Sécurité</span> : pas de mots de passe en dur</span>
+                            </div>
+                        </div>
+
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span class="project-name">Bakery Stock Project</span>
+                <span class="page-number">8 / 12</span>
+            </div>
+        </div>
+
+        <!-- ==================== SLIDE 9 : PVC ==================== -->
+        <div class="slide" id="slide9">
+            <div class="bg-decoration bg-1"></div>
+            <div class="bg-decoration bg-2"></div>
+
+            <h1 class="slide-title">PVC : Persistance des Données MySQL</h1>
+
+            <div class="slide-content">
+                <div class="grid-2col">
+                    <div style="display: flex; flex-direction: column; gap: 0.9rem;">
+                        <div style="background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,165,0,0.05)); border: 2px solid rgba(255,215,0,0.3); border-left: 4px solid #FFD700; padding: 1.2rem 1.5rem; border-radius: 12px;">
+                            <div class="card-title" style="color: #FFD700; font-size: 1.05rem;">PersistentVolumeClaim</div>
+                            <div style="font-size: 0.88rem; color: #e0e0e0; line-height: 1.5;">Demande de stockage persistant pour conserver les données même si le Pod est recréé</div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem;">
+                            <div style="background: linear-gradient(135deg, rgba(255,69,58,0.15), rgba(255,42,0,0.1)); border: 2px solid rgba(255,69,58,0.35); border-radius: 12px; padding: 1rem;">
+                                <div class="card-title" style="color: #FF453A; font-size: 0.95rem;">Sans PVC</div>
+                                <div style="font-size: 0.82rem; color: #d0d0d0;">Pod redémarre → <strong style="color: #FF453A;">Données perdues</strong></div>
+                            </div>
+                            <div style="background: linear-gradient(135deg, rgba(52,199,89,0.15), rgba(48,209,88,0.1)); border: 2px solid rgba(52,199,89,0.35); border-radius: 12px; padding: 1rem;">
+                                <div class="card-title" style="color: #34C759; font-size: 0.95rem;">Avec PVC</div>
+                                <div style="font-size: 0.82rem; color: #d0d0d0;">Pod recréé → <strong style="color: #34C759;">Données conservées</strong></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 0.9rem;">
+                        <div class="card">
+                            <div class="card-title" style="color: #FF6B35; font-size: 1.05rem;">Configuration MySQL</div>
+                            
+                            <div style="background: rgba(255,42,0,0.06); border-left: 3px solid #FF2A00; padding: 0.7rem 1rem; margin-bottom: 0.7rem; border-radius: 6px;">
+                                <div style="font-weight: 600; color: #FFD700; font-size: 0.88rem;">strategy: Recreate</div>
+                                <div style="font-size: 0.8rem; color: #c0c0c0; margin-top: 0.3rem;">Stratégie spéciale pour MySQL</div>
+                            </div>
+
+                            <div style="background: rgba(255,42,0,0.06); border-left: 3px solid #FF2A00; padding: 0.7rem 1rem; margin-bottom: 0.7rem; border-radius: 6px;">
+                                <div style="font-weight: 600; color: #FFD700; font-size: 0.88rem;">Pourquoi ?</div>
+                                <div style="font-size: 0.8rem; color: #c0c0c0; margin-top: 0.3rem;">PVC en <strong style="color: #FFD700;">ReadWriteOnce</strong> → Pas 2 Pods simultanément</div>
+                            </div>
+
+                            <div style="background: rgba(255,42,0,0.06); border-left: 3px solid #FF2A00; padding: 0.7rem 1rem; border-radius: 6px;">
+                                <div style="font-weight: 600; color: #FFD700; font-size: 0.88rem;">Avantage</div>
+                                <div style="font-size: 0.8rem; color: #c0c0c0; margin-top: 0.3rem;">Évite écritures simultanées sur le volume</div>
+                            </div>
+                        </div>
+
+                        <div style="background: linear-gradient(135deg, rgba(100,149,237,0.12), rgba(65,105,225,0.08)); border: 2px solid rgba(100,149,237,0.3); border-radius: 14px; padding: 1rem;">
+                            <div class="card-title" style="color: #87CEEB; font-size: 0.95rem; text-align: center;">Workflow Recreate</div>
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.8rem;">
+                                <div style="padding: 0.5rem 0.9rem; background: rgba(255,255,255,0.06); border: 1px solid rgba(100,149,237,0.3); border-radius: 10px;">Arrêt ancien</div>
+                                <span style="color: #FF2A00; font-weight: bold;">→</span>
+                                <div style="padding: 0.5rem 0.9rem; background: rgba(255,255,255,0.06); border: 1px solid rgba(100,149,237,0.3); border-radius: 10px;">Libération</div>
+                                <span style="color: #FF2A00; font-weight: bold;">→</span>
+                                <div style="padding: 0.5rem 0.9rem; background: rgba(255,255,255,0.06); border: 1px solid rgba(100,149,237,0.3); border-radius: 10px;">Nouveau Pod</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span class="project-name">Bakery Stock Project</span>
+                <span class="page-number">9 / 12</span>
+            </div>
+        </div>
+
+        <!-- ==================== SLIDE 10 : WORKFLOW ==================== -->
+        <div class="slide" id="slide10">
+            <div class="bg-decoration bg-1"></div>
+            <div class="bg-decoration bg-2"></div>
+
+            <h1 class="slide-title">Workflow de Déploiement Complet</h1>
+
+            <div class="slide-content">
+                <div class="grid-3col">
+                    <div class="step-card">
+                        <div class="step-number-badge">1</div>
+                        <div class="card-title" style="color: #FFD700; font-size: 1rem; margin-top: 0.3rem;">Build Images</div>
+                        <div class="code-block" style="font-size: 0.75rem;">docker build -t yannisal/myrepo:frontend .</div>
+                        <div style="font-size: 0.8rem; color: #c0c0c0; margin-top: 0.5rem;">Construction images Docker</div>
+                        <div style="font-size: 0.75rem; color: #98D89E; margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.08);">frontend, products, orders, stock</div>
+                    </div>
+
+                    <div class="step-card">
+                        <div class="step-number-badge">2</div>
+                        <div class="card-title" style="color: #FFD700; font-size: 1rem; margin-top: 0.3rem;">Push Images</div>
+                        <div class="code-block" style="font-size: 0.75rem;">docker push yannisal/myrepo:frontend</div>
+                        <div style="font-size: 0.8rem; color: #c0c0c0; margin-top: 0.5rem;">Envoi sur Docker Hub</div>
+                        <div style="font-size: 0.75rem; color: #FF453A; margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.08);">Sans push = ImagePullBackOff</div>
+                    </div>
+
+                    <div class="step-card">
+                        <div class="step-number-badge">3</div>
+                        <div class="card-title" style="color: #FFD700; font-size: 1rem; margin-top: 0.3rem;">Apply Manifests</div>
+                        <div class="code-block" style="font-size: 0.75rem;">kubectl apply -f kubernetes/</div>
+                        <div style="font-size: 0.8rem; color: #c0c0c0; margin-top: 0.5rem;">Création objets K8s YAML</div>
+                        <div style="font-size: 0.75rem; color: #98D89E; margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.08);">ConfigMap, Secret, Deployments...</div>
+                    </div>
+
+                    <div class="step-card">
+                        <div class="step-number-badge">4</div>
+                        <div class="card-title" style="color: #FFD700; font-size: 1rem; margin-top: 0.3rem;">Check Rollout</div>
+                        <div class="code-block" style="font-size: 0.72rem;">kubectl rollout status deployment/mysql-deployment</div>
+                        <div style="font-size: 0.8rem; color: #c0c0c0; margin-top: 0.5rem;">Vérification déploiement effectif</div>
+                        <div style="font-size: 0.75rem; color: #98D89E; margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.08);">Attente disponibilité Pods</div>
+                    </div>
+
+                    <div class="step-card">
+                        <div class="step-number-badge">5</div>
+                        <div class="card-title" style="color: #FFD700; font-size: 1rem; margin-top: 0.3rem;">Verify State</div>
+                        <div class="code-block" style="font-size: 0.72rem;">kubectl get pods<br>kubectl get svc<br>kubectl get pvc</div>
+                        <div style="font-size: 0.8rem; color: #c0c0c0; margin-top: 0.5rem;">Inspection état cluster</div>
+                        <div style="font-size: 0.75rem; color: #98D89E; margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.08);">Running • Bound • Active</div>
+                    </div>
+
+                    <div class="step-card">
+                        <div class="step-number-badge">6</div>
+                        <div class="card-title" style="color: #FFD700; font-size: 1rem; margin-top: 0.3rem;">Access App</div>
+                        <div class="code-block" style="font-size: 0.75rem; color: #98D89E;">http://&lt;node-ip&gt;:30080</div>
+                        <div style="font-size: 0.8rem; color: #c0c0c0; margin-top: 0.5rem;">Accès via NodePort frontend</div>
+                        <div style="font-size: 0.75rem; color: #98D89E; margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.08);">Port 30080 configuré</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="slide-footer">
+                <span class="project-name">Bakery Stock Project</span>
+                <span class="page-number">10 / 12</span>
+            </div>
+        </div>
+
+        <!-- ==================== SLIDE 11 : NGINX ==================== -->
+        <div class="slide" id="slide11">
+            <div class="bg-decoration bg-1"></div>
+            <div class="bg-decoration bg-2"></div>
+
+            <h1 class="slide-title">Nginx & Le Proxy /api</h1>
+
+            <div class="slide-content">
+                <div class="grid-2col">
+                    <div style="display: flex; flex-direction: column; gap: 1rem;">
+                        <div style="background: linear-gradient(135deg, rgba(255,69,58,0.15), rgba(255,42,0,0.1)); border: 2px solid rgba(255,69,58,0.4); border-left: 5px solid #FF453A; padding: 1.2rem 1.5rem; border-radius: 12px;">
+                            <div class="card-title" style="color: #FF453A; font-size: 1.05rem;">Problème</div>
+                            <div style="font-size: 0.88rem; color: #e0e0e0; line-height: 1.5;">
+                                Le navigateur <span class="highlight">ne connaît pas</span> les noms internes K8s !<br>
+                                <span style="font-size: 0.82rem; color: #b0b0b0;">Ces noms n'existent que dans le réseau interne du cluster</span>
+                            </div>
+                        </div>
+
+                        <div style="background: linear-gradient(135deg, rgba(52,199,89,0.15), rgba(48,209,88,0.1)); border: 2px solid rgba(52,199,89,0.4); border-left: 5px solid #34C759; padding: 1.2rem 1.5rem; border-radius: 12px;">
+                            <div class="card-title" style="color: #34C759; font-size: 1.05rem;">Solution</div>
+                            <div style="font-size: 0.88rem; color: #e0e0e0; line-height: 1.5;">
+                                <span class="highlight">Nginx</span> comme reverse proxy intégré au frontend<br>
+                                Navigateur → <strong>/api/...</strong> → Nginx → Backends internes
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 0.9rem;">
+                        <div class="card" style="flex: 1;">
+                            <div class="card-title" style="color: #FFD700; text-align: center; font-size: 1rem;">Règles de Proxy Nginx</div>
+                            
+                            <table style="margin-top: 0.8rem; font-size: 0.82rem;">
+                                <thead>
+                                    <tr><th>Chemin Navigateur</th><th>Destination K8s</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code style="color: #87CEEB; font-weight: 600; font-size: 0.85rem;">/api/products</code></td>
+                                        <td><code style="color: #98D89E; font-size: 0.8rem;">backend-products-service:5001</code></td>
+                                    </tr>
+                                    <tr>
+                                        <td><code style="color: #87CEEB; font-weight: 600; font-size: 0.85rem;">/api/orders</code></td>
+                                        <td><code style="color: #98D89E; font-size: 0.8rem;">backend-orders-service:5002</code></td>
+                                    </tr>
+                                    <tr>
+                                        <td><code style="color: #87CEEB; font-weight: 600; font-size: 0.85rem;">/api/stock-usage</code></td>
+                                        <td><code style="color: #98D89E; font-size: 0.8rem;">backend-stock-usage-service:5003</code></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div style="background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,165,0,0.05)); border: 2px solid rgba(255,215,0,0.3); border-radius: 12px; padding: 1rem;">
+                            <div class="card-title" style="color: #FFD700; text-align: center; font-size: 0.95rem;">Avantages</div>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-top: 0.7rem;">
+                                <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #d0d0d0; padding: 0.5rem; background: rgba(255,215,0,0.06); border-radius: 8px;">
+                                    <span style="color: #34C759; font-size: 1rem;">✓</span>
+                                    Backends cachés
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #d0d0d0; padding: 0.5rem; background: rgba(255,215,0,0.06); border-radius: 8px;">
+                                    <span style="color: #34C759; font-size: 1rem;">✓</span>
+                                    Pas de CORS
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #d0d0d0; padding: 0.5rem; background: rgba(255,215,0,0.06); border-radius: 8px;">
+                                    <span style="color: #34C759; font-size: 1rem;">✓</span>
+                                    Entrée unique
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span class="project-name">Bakery Stock Project</span>
+                <span class="page-number">11 / 12</span>
+            </div>
+        </div>
+
+        <!-- ==================== SLIDE 12 : RÉSUMÉ & DÉMO ==================== -->
+        <div class="slide" id="slide12">
+            <div class="bg-decoration bg-1"></div>
+            <div class="bg-decoration bg-2"></div>
+
+            <h1 class="slide-title">Résumé & Démonstration</h1>
+
+            <div class="slide-content">
+                <div class="grid-2col">
+                    <div class="card" style="border-radius: 16px;">
+                        <div class="card-title" style="color: #FFD700; text-align: center; font-size: 1.2rem;">Points Clés à Retenir</div>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.8rem;">
+                            <div style="display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.9rem; background: rgba(255,42,0,0.06); border-left: 3px solid #FF2A00; border-radius: 8px;">
+                                <span style="font-size: 0.85rem; color: #e0e0e0;"><span class="highlight">5 services</span> : frontend + 3 backends + mysql</span>
+                            </div>
+
+                            <div style="display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.9rem; background: rgba(255,42,0,0.06); border-left: 3px solid #FF2A00; border-radius: 8px;">
+                                <span style="font-size: 0.85rem; color: #e0e0e0;"><span class="highlight">Frontend</span> = seule exposition publique</span>
+                            </div>
+
+                            <div style="display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.9rem; background: rgba(255,42,0,0.06); border-left: 3px solid #FF2A00; border-radius: 8px;">
+                                <span style="font-size: 0.85rem; color: #e0e0e0;"><span class="highlight">Services K8s</span> = réseau stable</span>
+                            </div>
+
+                            <div style="display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.9rem; background: rgba(255,42,0,0.06); border-left: 3px solid #FF2A00; border-radius: 8px;">
+                                <span style="font-size: 0.85rem; color: #e0e0e0;"><span class="highlight">Deployments</span> = gestion auto Pods</span>
+                            </div>
+
+                            <div style="display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.9rem; background: rgba(255,42,0,0.06); border-left: 3px solid #FF2A00; border-radius: 8px;">
+                                <span style="font-size: 0.85rem; color: #e0e0e0;"><span class="highlight">ConfigMap + Secret</span> = config séparée</span>
+                            </div>
+
+                            <div style="display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.9rem; background: rgba(255,42,0,0.06); border-left: 3px solid #FF2A00; border-radius: 8px;">
+                                <span style="font-size: 0.85rem; color: #e0e0e0;"><span class="highlight">PVC</span> = persistance MySQL</span>
+                            </div>
+
+                            <div style="display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.9rem; background: rgba(255,42,0,0.06); border-left: 3px solid #FF2A00; border-radius: 8px;">
+                                <span style="font-size: 0.85rem; color: #e0e0e0;"><span class="highlight">Nginx</span> = proxy /api vers backends</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; justify-content: center; gap: 1.5rem;">
+                        <div style="background: linear-gradient(135deg, rgba(52,199,89,0.15), rgba(48,209,88,0.1)); border: 3px solid rgba(52,199,89,0.5); border-radius: 18px; padding: 2.5rem 1.5rem; text-align: center;">
+                            <div style="font-family: 'Poppins', sans-serif; font-size: 1.8rem; font-weight: 800; color: #34C759; letter-spacing: 0.5px;">DÉMONSTRATION LIVE</div>
+                            <div style="font-size: 1rem; color: #98D89E; font-weight: 500; margin-top: 0.5rem;">
+                                <a href="http://192.168.194.176/" target="_blank" rel="noopener noreferrer" style="color: #98D89E; text-decoration: underline;">http://192.168.194.176/</a>
+                            </div>
+                        </div>
+
+                        <div style="background: linear-gradient(135deg, rgba(255,215,0,0.12), rgba(255,165,0,0.08)); border: 3px solid rgba(255,215,0,0.45); border-radius: 18px; padding: 1.5rem; text-align: center;">
+                            <div style="font-family: 'Poppins', sans-serif; font-size: 1.6rem; font-weight: 700; color: #FFD700; margin-bottom: 0.6rem;">Questions ?</div>
+                            <div style="font-size: 0.9rem; color: #b0b0b0; font-style: italic; margin-top: 0.8rem;">
+                                Par <span style="color: #FFD700; font-weight: 600;">Yannis</span> & <span style="color: #FFD700; font-weight: 600;">Lisa</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span class="project-name">Bakery Stock Project - Merci !</span>
+                <span class="page-number">12 / 12</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Navigation dots -->
+    <div class="nav-dots" id="navDots"></div>
+
+    <!-- Keyboard hint -->
+    <div class="keyboard-hint">← → Espace | F11 plein écran</div>
+
+    <script>
+        let currentSlide = 1;
+        const totalSlides = 12;
+
+        function initNavDots() {
+            const navContainer = document.getElementById('navDots');
+            for (let i = 1; i<= totalSlides; i++) {
+                const dot = document.createElement('div');
+                dot.className = `nav-dot ${i === 1 ? 'active' : ''}`;
+                dot.onclick = () =>goToSlide(i);
+                navContainer.appendChild(dot);
+            }
+        }
+
+        function showSlide(n) {
+            const slides = document.querySelectorAll('.slide');
+            const dots = document.querySelectorAll('.nav-dot');
+
+            slides.forEach(slide => slide.classList.remove('active'));
+            dots.forEach(dot => dot.classList.remove('active'));
+
+            document.getElementById(`slide${n}`).classList.add('active');
+            if (dots[n-1]) dots[n-1].classList.add('active');
+
+            currentSlide = n;
+
+            document.querySelectorAll('.page-number').forEach(el => {
+                el.textContent = `${n} / ${totalSlides}`;
+            });
+        }
+
+        function nextSlide() {
+            if (currentSlide< totalSlides) showSlide(currentSlide + 1);
+        }
+
+        function prevSlide() {
+            if (currentSlide >1) showSlide(currentSlide - 1);
+        }
+
+        function goToSlide(n) {
+            if (n >= 1 && n<= totalSlides) showSlide(n);
+        }
+
+        document.addEventListener('keydown', (e) =>{
+            switch(e.key) {
+                case 'ArrowRight': case ' ': case 'Enter':
+                    e.preventDefault(); nextSlide(); break;
+                case 'ArrowLeft':
+                    e.preventDefault(); prevSlide(); break;
+                case 'Home': e.preventDefault(); goToSlide(1); break;
+                case 'End': e.preventDefault(); goToSlide(totalSlides); break;
+            }
+        });
+
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        document.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; });
+        document.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            const diff = touchStartX - touchEndX;
+            if (Math.abs(diff) > 50) {
+                diff > 0 ? nextSlide() : prevSlide();
+            }
+        });
+
+        window.onload = () => { initNavDots(); showSlide(1); };
+    </script>
+</body>
+</html>
